@@ -2,26 +2,65 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AI Form Coach - Instructions</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Kinetic Bloom AI Coach</title>
+  <style>
+    body { font-family: sans-serif; text-align: center; padding: 20px; }
+    #ai-section { display: none; margin-top: 20px; }
+    video, canvas { width: 100%; max-width: 640px; }
+  </style>
 </head>
 <body>
-  <div class="container">
-    <h1>Οδηγίες Χρήσης AI Form Coach</h1>
-    <p>
-      Το κινητό σας θα χρησιμοποιήσει την κάμερα για να αξιολογήσει την τεχνική σας την ώρα που κάνετε την άσκηση.
-    </p>
-    <ul>
-      <li>Φροντίστε να υπάρχει αρκετός φωτισμός</li>
-      <li>Σταθείτε περίπου 2 μέτρα από την κάμερα</li>
-      <li>Ακολουθήστε τις οδηγίες στην οθόνη</li>
-      <li>Όταν είστε έτοιμοι, πατήστε έναρξη</li>
-    </ul>
 
-    <a href="tracker.html" class="start-btn">Έναρξη AI Tracking</a>
+  <!-- Οδηγίες -->
+  <div id="instructions">
+    <h2>Οδηγίες Χρήσης</h2>
+    <p>Η κάμερα θα αξιολογήσει την τεχνική σας κατά την άσκηση.</p>
+    <ul style="text-align:left; display:inline-block;">
+      <li>Σταθείτε περίπου 2 μέτρα από την κάμερα</li>
+      <li>Φροντίστε να υπάρχει αρκετός φωτισμός</li>
+      <li>Πατήστε "Έναρξη" όταν είστε έτοιμοι</li>
+    </ul>
+    <button onclick="startAI()">Έναρξη</button>
   </div>
 
-  <script src="script.js"></script>
+  <!-- AI Section -->
+  <div id="ai-section">
+    <video id="video" autoplay muted playsinline></video>
+    <canvas id="canvas"></canvas>
+    <p id="feedback">Ανάλυση σε εξέλιξη...</p>
+  </div>
+
+  <!-- AI Script -->
+  <script>
+    async function startAI() {
+      document.getElementById("instructions").style.display = "none";
+      document.getElementById("ai-section").style.display = "block";
+
+      const video = document.getElementById("video");
+      const canvas = document.getElementById("canvas");
+      const ctx = canvas.getContext("2d");
+
+      // Ζητάμε πρόσβαση στην κάμερα
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      video.srcObject = stream;
+
+      // Όταν ξεκινήσει το video, ζωγραφίζουμε το feed
+      video.onloadedmetadata = () => {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+
+        // Loop για AI detection
+        function drawLoop() {
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          // εδώ θα βάλεις AI detection logic (π.χ. MediaPipe, PoseNet)
+          requestAnimationFrame(drawLoop);
+        }
+
+        drawLoop();
+      };
+    }
+  </script>
+
 </body>
 </html>
