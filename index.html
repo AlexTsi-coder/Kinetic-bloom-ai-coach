@@ -1,19 +1,29 @@
 <!DOCTYPE html>
-<html lang="el">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Kinetic Bloom AI Coach</title>
-  <link rel="stylesheet" href="style.css" />
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/pose.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.5/drawing_utils.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.5/camera_utils.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Live Instructions</title>
+  <style>
+    body {
+      background-color: #000;
+      color: #0f0;
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+    #instructions {
+      font-size: 2rem;
+      text-align: center;
+      max-width: 90%;
+    }
+  </style>
 </head>
 <body>
-  <h1>Οδηγίες από το AI Coach</h1>
-  <video class="input_video" playsinline></video>
-  <canvas class="output_canvas"></canvas>
-  <div id="feedback">Φόρτωση...</div>
+  <div id="instructions">Περιμένω το AI για οδηγίες...</div>
 
   <script src="script.js"></script>
 </body>
