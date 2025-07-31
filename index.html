@@ -1,30 +1,27 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="el">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AI Live Instructions</title>
+  <meta charset="UTF-8">
+  <title>Kinetic Bloom AI Coach</title>
   <style>
-    body {
-      background-color: #000;
-      color: #0f0;
-      font-family: Arial, sans-serif;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      margin: 0;
-    }
-    #instructions {
-      font-size: 2rem;
-      text-align: center;
-      max-width: 90%;
-    }
+    body { font-family: sans-serif; text-align: center; margin: 0; padding: 0; background: #f9fafb; }
+    #feedback { font-size: 1.5em; margin: 20px; font-weight: bold; }
+    canvas { border: 1px solid #ccc; }
   </style>
 </head>
 <body>
-  <div id="instructions">Περιμένω το AI για οδηγίες...</div>
+  <h1>Kinetic Bloom AI Coach</h1>
+  <div id="feedback">Περίμενε, ανίχνευση σε εξέλιξη...</div>
 
+  <video class="input_video" style="display:none;"></video>
+  <canvas class="output_canvas" width="640" height="480"></canvas>
+
+  <!-- MediaPipe Libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/pose.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.5/drawing_utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.5/camera_utils.js"></script>
+
+  <!-- Your JS -->
   <script src="script.js"></script>
 </body>
 </html>
