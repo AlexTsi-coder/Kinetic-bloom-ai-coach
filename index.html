@@ -1,25 +1,23 @@
 <!DOCTYPE html>
-<html>
+<html lang="el">
 <head>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.jsdelivr.net https://*.google.com data: blob:; media-src 'self' https://*.jsdelivr.net blob:;">
   <title>Kinetic Bloom AI Coach</title>
   <link rel="stylesheet" href="style.css">
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' https://*.jsdelivr.net; media-src 'self' https://*.jsdelivr.net blob:;">
-<style>
-  body {
-    margin: 0;
-    overflow: hidden;
-    background: transparent;
-  }
-</style>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
 </head>
 <body>
   <div class="ai-coach-container">
-    <video class="input_video"></video>
-    <canvas class="output_canvas"></canvas>
-    <div class="feedback-text"></div>
+    <video class="input_video" playsinline></video>
+    <canvas class="output_canvas" width="640" height="480"></canvas>
+    <div class="feedback-container">
+      <div class="feedback-text">Παρακαλώ περιμένετε...</div>
+    </div>
   </div>
   <script src="app.js"></script>
 </body>
