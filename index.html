@@ -1,135 +1,18 @@
 <!DOCTYPE html>
-<html lang="el">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>AI Push-up Coach - Mobile</title>
-
-  <!-- MediaPipe -->
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/pose.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.5/drawing_utils.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.5/camera_utils.js"></script>
-
-  <style>
-    body {
-      margin: 0; 
-      padding: 10px;
-      font-family: Arial, sans-serif;
-      background: #121212;
-      color: white;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
-    #container {
-      position: relative;
-      width: 90vw;
-      max-width: 400px;
-      aspect-ratio: 4 / 3;
-      margin-bottom: 15px;
-    }
-    video.input_video, canvas.output_canvas {
-      position: absolute;
-      top: 0; left: 0;
-      width: 100%;
-      height: 100%;
-      border-radius: 10px;
-      -webkit-transform: scaleX(-1);
-      transform: scaleX(-1); /* mirror */
-    }
-    #feedback {
-      font-size: 1.2rem;
-      font-weight: 700;
-      text-align: center;
-      min-height: 2em;
-      color: #fbbf24; /* default yellow */
-    }
-  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kinetic Bloom AI Coach</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
 </head>
 <body>
-  <h1>AI Push-up Coach</h1>
-
-  <div id="container">
-    <video class="input_video" autoplay muted playsinline></video>
+  <div class="ai-coach-container">
+    <video class="input_video"></video>
     <canvas class="output_canvas"></canvas>
+    <div class="feedback-text"></div>
   </div>
-
-  <div id="feedback">Περίμενε, ανίχνευση σε εξέλιξη...</div>
-
-  <script defer>
-    const videoElement = document.querySelector('.input_video');
-    const canvasElement = document.querySelector('.output_canvas');
-    const canvasCtx = canvasElement.getContext('2d');
-    const feedbackElement = document.getElementById('feedback');
-
-    function onResults(results) {
-      canvasCtx.save();
-      canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-
-      // Mirror video frame
-      canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
-
-      if (results.poseLandmarks) {
-        window.drawConnectors(canvasCtx, results.poseLandmarks, window.POSE_CONNECTIONS,
-          { color: '#00FF00', lineWidth: 4 });
-        window.drawLandmarks(canvasCtx, results.poseLandmarks,
-          { color: '#FF0000', lineWidth: 2 });
-
-        const leftShoulder = results.poseLandmarks[11];
-        const rightShoulder = results.poseLandmarks[12];
-        const leftHip = results.poseLandmarks[23];
-        const rightHip = results.poseLandmarks[24];
-
-        const shoulderAvgY = (leftShoulder.y + rightShoulder.y) / 2;
-        const hipAvgY = (leftHip.y + rightHip.y) / 2;
-
-        const diff = Math.abs(shoulderAvgY - hipAvgY);
-
-        if (diff < 0.1) {
-          feedbackElement.textContent = "Καλή στάση! Κράτα την πλάτη ίσια.";
-          feedbackElement.style.color = '#4ade80';
-        } else {
-          feedbackElement.textContent = "Διόρθωσε την στάση σου, τέντωσε την πλάτη.";
-          feedbackElement.style.color = '#f87171';
-        }
-      } else {
-        feedbackElement.textContent = "Περίμενε, ανίχνευση σε εξέλιξη...";
-        feedbackElement.style.color = '#fbbf24';
-      }
-
-      canvasCtx.restore();
-    }
-
-    const pose = new window.Pose({
-      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/${file}`
-    });
-
-    pose.setOptions({
-      modelComplexity: 1,
-      smoothLandmarks: true,
-      enableSegmentation: false,
-      smoothSegmentation: false,
-      minDetectionConfidence: 0.5,
-      minTrackingConfidence: 0.5
-    });
-
-    pose.onResults(onResults);
-
-    // Ρύθμιση καμερας με mediaPipe camera helper
-    const camera = new window.Camera(videoElement, {
-      onFrame: async () => {
-        await pose.send({ image: videoElement });
-      },
-      width: 640,
-      height: 480
-    });
-    camera.start();
-
-    // Set canvas size = video size on load
-    videoElement.addEventListener('loadedmetadata', () => {
-      canvasElement.width = videoElement.videoWidth;
-      canvasElement.height = videoElement.videoHeight;
-    });
-  </script>
+  <script src="app.js"></script>
 </body>
 </html>
