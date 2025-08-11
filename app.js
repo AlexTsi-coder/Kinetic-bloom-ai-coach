@@ -115,6 +115,7 @@ const camera = new Camera(videoElement, {
 // Έναρξη κάμερας
 camera.start();
 
+
 // Χειρισμός σφαλμάτων
 pose.onError(error => {
   console.error('MediaPipe Σφάλμα:', error);
@@ -125,3 +126,13 @@ pose.onError(error => {
 if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
   feedbackElement.textContent = "Η ΣΥΣΚΕΥΗ ΣΑΣ ΔΕΝ ΥΠΟΣΤΗΡΙΖΕΙ ΚΑΜΕΡΑ";
 }
+
+// Έλεγχος κάμερας
+navigator.mediaDevices.getUserMedia({ video: true })
+  .then(() => feedbackElement.textContent = "Camera OK")
+  .catch(err => feedbackElement.textContent = "Camera error: " + err.message);
+
+// Έλεγχος MediaPipe
+pose.onResults(results => {
+  console.log("MediaPipe results:", results);
+});
