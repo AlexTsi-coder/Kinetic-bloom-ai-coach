@@ -125,13 +125,11 @@ async function loadModel() {
 }
 
 function checkVideoReady() {
-  // Ελέγχει αν το βίντεο έχει ξεκινήσει να δίνει καρέ
   if (video.currentTime > 0 && !video.paused && !video.ended) {
     videoReady = true;
     clearTimeout(videoCheckTimeout);
     detectPoseInRealTime();
   } else {
-    // Αν όχι, περιμένει λίγο και ξαναδοκιμάζει
     videoCheckTimeout = setTimeout(checkVideoReady, 100);
   }
 }
@@ -203,7 +201,8 @@ function drawPose(pose) {
   ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
   
   pose.keypoints.forEach(point => {
-    if (point.score > 0.5) {
+    // ΑΛΛΑΓΗ ΕΔΩ: Μειώνουμε το όριο εμπιστοσύνης για να εμφανίζονται τα σημεία
+    if (point.score > 0.2) { 
       ctx.beginPath();
       ctx.arc(point.position.x, point.position.y, 7, 0, 2 * Math.PI);
       ctx.fillStyle = 'blue';
@@ -215,7 +214,7 @@ function drawPose(pose) {
 startButton.addEventListener('click', () => {
   startButton.style.display = 'none';
   feedbackMessageDiv.textContent = 'Τώρα ξεκινάω!';
-  checkVideoReady(); // Νέα συνάρτηση για έλεγχο
+  checkVideoReady();
 });
 
 async function init() {
