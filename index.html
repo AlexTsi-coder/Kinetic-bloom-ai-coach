@@ -1,25 +1,25 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>AI Workout Coach</title>
+  <title>AI Squat Coach</title>
   <style>
     body {
       margin: 0;
       padding: 0;
       font-family: sans-serif;
       background-color: #f0f0f0;
-      overflow: hidden; /* Hide scrollbars */
+      overflow: hidden;
     }
     #container {
       position: relative;
       width: 100%;
-      height: 100vh; /* Make it full height of the viewport */
+      height: 100vh;
       text-align: center;
     }
     #webcam {
       width: 100%;
       height: auto;
-      display: none; /* Hide the video element, only show the canvas */
+      display: none;
     }
     #output {
       position: absolute;
@@ -50,6 +50,17 @@
       cursor: pointer;
       z-index: 30;
     }
+    #counter {
+        position: absolute;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 3em;
+        font-weight: bold;
+        color: #fff;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        z-index: 30;
+    }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/posenet"></script>
@@ -60,6 +71,7 @@
   <video id="webcam" playsinline></video>
   <canvas id="output"></canvas>
   <div id="feedback-message"></div>
+  <div id="counter">0</div>
   <button id="startButton">Είμαι έτοιμος!</button>
 </div>
 
@@ -69,11 +81,23 @@ const canvas = document.getElementById('output');
 const ctx = canvas.getContext('2d');
 const startButton = document.getElementById('startButton');
 const feedbackMessageDiv = document.getElementById('feedback-message');
+const counterDiv = document.getElementById('counter');
 
 let net;
 let videoReady = false;
+let squatState = 'up'; // 'up', 'down', 'transition'
+let squatCount = 0;
 
-// 1. Ρύθμιση της κάμερας
+// Helper function to calculate the angle between three points (A, B, C)
+function getAngle(A, B, C) {
+    const angleRad = Math.atan2(C.y - B.y, C.x - B.x) - Math.atan2(A.y - B.y, A.x - B.x);
+    let angleDeg = Math.abs(angleRad * 180.0 / Math.PI);
+    if (angleDeg > 180) {
+        angleDeg = 360 - angleDeg;
+    }
+    return angleDeg;
+}
+
 async function setupWebcam() {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ 'video': true });
@@ -91,7 +115,6 @@ async function setupWebcam() {
   }
 }
 
-// 2. Φόρτωση του μοντέλου PoseNet
 async function loadModel() {
   feedbackMessageDiv.textContent = 'Φόρτωση AI...';
   net = await posenet.load({
@@ -104,7 +127,6 @@ async function loadModel() {
   feedbackMessageDiv.textContent = 'Είμαστε έτοιμοι! Πατήστε "Είμαι έτοιμος!"';
 }
 
-// 3. Η κύρια συνάρτηση για την ανίχνευση
 async function detectPoseInRealTime() {
   if (!videoReady || !net) {
     requestAnimationFrame(detectPoseInRealTime);
@@ -119,32 +141,53 @@ async function detectPoseInRealTime() {
   const pose = await net.estimateSinglePose(video, {
     flipHorizontal: true
   });
+
+  const keypoints = pose.keypoints;
+  const confidenceThreshold = 0.5;
+
+  const leftHip = keypoints[11];
+  const rightHip = keypoints[12];
+  const leftKnee = keypoints[13];
+  const rightKnee = keypoints[14];
+  const leftAnkle = keypoints[15];
+  const rightAnkle = keypoints[16];
+
+  let poseValid = true;
+  if (!leftHip || !rightHip || !leftKnee || !rightKnee || !leftAnkle || !rightAnkle) {
+    poseValid = false;
+  }
+  if (poseValid && (leftHip.score < confidenceThreshold || rightHip.score < confidenceThreshold || 
+                     leftKnee.score < confidenceThreshold || rightKnee.score < confidenceThreshold ||
+                     leftAnkle.score < confidenceThreshold || rightAnkle.score < confidenceThreshold)) {
+    poseValid = false;
+  }
   
-  const leftHip = pose.keypoints[11];
-  const rightHip = pose.keypoints[12];
-  const leftKnee = pose.keypoints[13];
-  const rightKnee = pose.keypoints[14];
-  
-  if (leftKnee && rightKnee && leftHip && rightHip) {
-    if (leftHip.score > 0.5 && leftKnee.score > 0.5 && rightHip.score > 0.5 && rightKnee.score > 0.5) {
-      if (leftHip.position.y > leftKnee.position.y && rightHip.position.y > rightKnee.position.y) {
-        feedbackMessageDiv.textContent = 'Σωστή εκτέλεση! 👍';
-      } else {
-        feedbackMessageDiv.textContent = 'Πήγαινε πιο χαμηλά! 👇';
-      }
+  if (poseValid) {
+    const hipAngle = (getAngle(leftHip.position, leftKnee.position, leftAnkle.position) + 
+                      getAngle(rightHip.position, rightKnee.position, rightAnkle.position)) / 2;
+    
+    if (hipAngle > 165 && squatState === 'down') {
+        squatState = 'up';
+        squatCount++;
+        counterDiv.textContent = squatCount;
+        feedbackMessageDiv.textContent = 'Τέλεια! Επόμενη επανάληψη.';
+    } else if (hipAngle < 100 && squatState === 'up') {
+        squatState = 'down';
+        feedbackMessageDiv.textContent = 'Πολύ καλά! Ανέβα τώρα.';
+    } else if (hipAngle < 100 && squatState === 'down') {
+        feedbackMessageDiv.textContent = 'Συνέχισε...';
     } else {
-      feedbackMessageDiv.textContent = 'Δεν βλέπω καλά τη στάση σου.';
+        feedbackMessageDiv.textContent = 'Μπες σε θέση εκκίνησης.';
     }
+    
   } else {
     feedbackMessageDiv.textContent = 'Εμφανίσου ολόκληρος στην κάμερα.';
   }
 
   drawPose(pose);
-
   requestAnimationFrame(detectPoseInRealTime);
 }
 
-// Βοηθητική συνάρτηση για το σχέδιο
 function drawPose(pose) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   
@@ -158,21 +201,18 @@ function drawPose(pose) {
   });
 }
 
-// Έναρξη της διαδικασίας όταν πατηθεί το κουμπί
 startButton.addEventListener('click', () => {
-  startButton.style.display = 'none'; // Απόκρυψη του κουμπιού
+  startButton.style.display = 'none';
   feedbackMessageDiv.textContent = 'Τώρα ξεκινάω!';
   detectPoseInRealTime();
 });
 
-// Εκκίνηση της εφαρμογής
 async function init() {
   await setupWebcam();
   loadModel();
 }
 
 init();
-
 </script>
 </body>
 </html>
