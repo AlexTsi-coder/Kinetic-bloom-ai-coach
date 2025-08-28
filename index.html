@@ -65,7 +65,7 @@
 <body>
 
 <div id="container">
-  <video id="webcam" playsinline></video>
+  <video id="webcam" playsinline muted></video>
   <canvas id="output"></canvas>
   <div id="feedback-message"></div>
   <div id="counter">0</div>
@@ -137,7 +137,7 @@ async function detectPoseInRealTime() {
   const pose = await net.estimateSinglePose(video, {
     flipHorizontal: true
   });
-
+  
   const keypoints = pose.keypoints;
   const confidenceThreshold = 0.5;
 
