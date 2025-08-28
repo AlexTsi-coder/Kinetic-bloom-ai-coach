@@ -16,11 +16,6 @@
       height: 100vh;
       text-align: center;
     }
-    #webcam {
-      width: 100%;
-      height: auto;
-    
-    }
     #output {
       position: absolute;
       top: 0;
@@ -68,7 +63,7 @@
 <body>
 
 <div id="container">
-  <video id="webcam" playsinline></video>
+  <video id="webcam" playsinline style="display: none;"></video>
   <canvas id="output"></canvas>
   <div id="feedback-message"></div>
   <div id="counter">0</div>
@@ -85,10 +80,10 @@ const counterDiv = document.getElementById('counter');
 
 let net;
 let videoReady = false;
-let squatState = 'up'; // 'up', 'down', 'transition'
+let squatState = 'up';
 let squatCount = 0;
 
-// Helper function to calculate the angle between three points (A, B, C)
+// Βοηθητική συνάρτηση για τον υπολογισμό της γωνίας μεταξύ τριών σημείων (A, B, C)
 function getAngle(A, B, C) {
     const angleRad = Math.atan2(C.y - B.y, C.x - B.x) - Math.atan2(A.y - B.y, A.x - B.x);
     let angleDeg = Math.abs(angleRad * 180.0 / Math.PI);
@@ -163,9 +158,11 @@ async function detectPoseInRealTime() {
   }
   
   if (poseValid) {
+    // Υπολογισμός της μέσης γωνίας του γόνατου
     const hipAngle = (getAngle(leftHip.position, leftKnee.position, leftAnkle.position) + 
                       getAngle(rightHip.position, rightKnee.position, rightAnkle.position)) / 2;
     
+    // Έλεγχος της κατάστασης του squat
     if (hipAngle > 165 && squatState === 'down') {
         squatState = 'up';
         squatCount++;
@@ -188,9 +185,12 @@ async function detectPoseInRealTime() {
   requestAnimationFrame(detectPoseInRealTime);
 }
 
+// Βοηθητική συνάρτηση για το σχέδιο
 function drawPose(pose) {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  // Σχεδιάζει την εικόνα από το βίντεο στον καμβά
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
   
+  // Σχεδιάζει τα σημεία πάνω στην εικόνα του βίντεο
   pose.keypoints.forEach(point => {
     if (point.score > 0.5) {
       ctx.beginPath();
