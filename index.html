@@ -60,7 +60,7 @@
     }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
-  <script src="https://cdn.jsdelivr.ly/npm/@tensorflow-models/posenet"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/posenet"></script>
 </head>
 <body>
 
@@ -185,12 +185,10 @@ async function detectPoseInRealTime() {
 }
 
 function drawPose(pose) {
-  ctx.clearRect(0, 0, canvas.width, canvas.height); // Καθαρισμός του καμβά πριν τη νέα σχεδίαση
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
   
-  // Σχεδιάζει την εικόνα από το βίντεο στον καμβά
   ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
   
-  // Σχεδιάζει τα σημεία πάνω στην εικόνα του βίντεο
   pose.keypoints.forEach(point => {
     if (point.score > 0.5) {
       ctx.beginPath();
