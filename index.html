@@ -16,11 +16,13 @@
       height: 100vh;
       text-align: center;
     }
-    #output {
+    #webcam, #output {
       position: absolute;
       top: 0;
       left: 0;
-      z-index: 10;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
     }
     #feedback-message {
       position: absolute;
@@ -58,12 +60,12 @@
     }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/posenet"></script>
+  <script src="https://cdn.jsdelivr.ly/npm/@tensorflow-models/posenet"></script>
 </head>
 <body>
 
 <div id="container">
-  <video id="webcam" playsinline style="display: none;"></video>
+  <video id="webcam" playsinline></video>
   <canvas id="output"></canvas>
   <div id="feedback-message"></div>
   <div id="counter">0</div>
@@ -83,7 +85,6 @@ let videoReady = false;
 let squatState = 'up';
 let squatCount = 0;
 
-// Βοηθητική συνάρτηση για τον υπολογισμό της γωνίας μεταξύ τριών σημείων (A, B, C)
 function getAngle(A, B, C) {
     const angleRad = Math.atan2(C.y - B.y, C.x - B.x) - Math.atan2(A.y - B.y, A.x - B.x);
     let angleDeg = Math.abs(angleRad * 180.0 / Math.PI);
@@ -158,11 +159,9 @@ async function detectPoseInRealTime() {
   }
   
   if (poseValid) {
-    // Υπολογισμός της μέσης γωνίας του γόνατου
     const hipAngle = (getAngle(leftHip.position, leftKnee.position, leftAnkle.position) + 
                       getAngle(rightHip.position, rightKnee.position, rightAnkle.position)) / 2;
     
-    // Έλεγχος της κατάστασης του squat
     if (hipAngle > 165 && squatState === 'down') {
         squatState = 'up';
         squatCount++;
@@ -185,8 +184,9 @@ async function detectPoseInRealTime() {
   requestAnimationFrame(detectPoseInRealTime);
 }
 
-// Βοηθητική συνάρτηση για το σχέδιο
 function drawPose(pose) {
+  ctx.clearRect(0, 0, canvas.width, canvas.height); // Καθαρισμός του καμβά πριν τη νέα σχεδίαση
+  
   // Σχεδιάζει την εικόνα από το βίντεο στον καμβά
   ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
   
