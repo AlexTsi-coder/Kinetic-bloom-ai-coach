@@ -84,6 +84,7 @@ let net;
 let videoReady = false;
 let squatState = 'up';
 let squatCount = 0;
+let videoCheckTimeout = null;
 
 function getAngle(A, B, C) {
     const angleRad = Math.atan2(C.y - B.y, C.x - B.x) - Math.atan2(A.y - B.y, A.x - B.x);
@@ -123,6 +124,18 @@ async function loadModel() {
   feedbackMessageDiv.textContent = 'Είμαστε έτοιμοι! Πατήστε "Είμαι έτοιμος!"';
 }
 
+function checkVideoReady() {
+  // Ελέγχει αν το βίντεο έχει ξεκινήσει να δίνει καρέ
+  if (video.currentTime > 0 && !video.paused && !video.ended) {
+    videoReady = true;
+    clearTimeout(videoCheckTimeout);
+    detectPoseInRealTime();
+  } else {
+    // Αν όχι, περιμένει λίγο και ξαναδοκιμάζει
+    videoCheckTimeout = setTimeout(checkVideoReady, 100);
+  }
+}
+
 async function detectPoseInRealTime() {
   if (!videoReady || !net) {
     requestAnimationFrame(detectPoseInRealTime);
@@ -133,14 +146,14 @@ async function detectPoseInRealTime() {
   const videoHeight = video.videoHeight;
   canvas.width = videoWidth;
   canvas.height = videoHeight;
-
+  
   const pose = await net.estimateSinglePose(video, {
     flipHorizontal: true
   });
   
   const keypoints = pose.keypoints;
   const confidenceThreshold = 0.5;
-
+  
   const leftHip = keypoints[11];
   const rightHip = keypoints[12];
   const leftKnee = keypoints[13];
@@ -202,7 +215,7 @@ function drawPose(pose) {
 startButton.addEventListener('click', () => {
   startButton.style.display = 'none';
   feedbackMessageDiv.textContent = 'Τώρα ξεκινάω!';
-  detectPoseInRealTime();
+  checkVideoReady(); // Νέα συνάρτηση για έλεγχο
 });
 
 async function init() {
