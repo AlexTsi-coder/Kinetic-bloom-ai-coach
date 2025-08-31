@@ -1,6 +1,7 @@
 <!DOCTYPE html>
-<html>
+<html lang="el">
 <head>
+  <meta charset="UTF-8">
   <title>AI Squat Coach</title>
   <style>
     body {
@@ -48,19 +49,22 @@
       z-index: 30;
     }
     #counter {
-        position: absolute;
-        top: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        font-size: 3em;
-        font-weight: bold;
-        color: #fff;
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
-        z-index: 30;
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 3em;
+      font-weight: bold;
+      color: #fff;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+      z-index: 30;
     }
   </style>
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/posenet"></script>
+
+  <!-- TensorFlow.js + Pose Detection -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.21.0"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose"></script>
 </head>
 <body>
 
@@ -80,24 +84,21 @@ const startButton = document.getElementById('startButton');
 const feedbackMessageDiv = document.getElementById('feedback-message');
 const counterDiv = document.getElementById('counter');
 
-let net;
+let detector;
 let videoReady = false;
 let squatState = 'up';
 let squatCount = 0;
-let videoCheckTimeout = null;
 
 function getAngle(A, B, C) {
-    const angleRad = Math.atan2(C.y - B.y, C.x - B.x) - Math.atan2(A.y - B.y, A.x - B.x);
-    let angleDeg = Math.abs(angleRad * 180.0 / Math.PI);
-    if (angleDeg > 180) {
-        angleDeg = 360 - angleDeg;
-    }
-    return angleDeg;
+  const angleRad = Math.atan2(C.y - B.y, C.x - B.x) - Math.atan2(A.y - B.y, A.x - B.x);
+  let angleDeg = Math.abs(angleRad * 180.0 / Math.PI);
+  if (angleDeg > 180) angleDeg = 360 - angleDeg;
+  return angleDeg;
 }
 
 async function setupWebcam() {
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ 'video': true });
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
     video.srcObject = stream;
     return new Promise((resolve) => {
       video.onloadedmetadata = () => {
@@ -107,121 +108,82 @@ async function setupWebcam() {
       };
     });
   } catch (error) {
-    feedbackMessageDiv.textContent = 'Δεν είναι δυνατή η πρόσβαση στην κάμερα. Ελέγξτε τις ρυθμίσεις σας.';
-    console.error('Webcam access denied:', error);
+    feedbackMessageDiv.textContent = 'Δεν είναι δυνατή η πρόσβαση στην κάμερα.';
+    console.error('Webcam error:', error);
   }
 }
 
 async function loadModel() {
   feedbackMessageDiv.textContent = 'Φόρτωση AI...';
-  net = await posenet.load({
-    architecture: 'MobileNetV1',
-    outputStride: 16,
-    inputResolution: { width: 640, height: 480 },
-    multiplier: 0.75
-  });
-  console.log('PoseNet model loaded.');
+  detector = await poseDetection.createDetector(
+    poseDetection.SupportedModels.MoveNet,
+    { modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING }
+  );
   feedbackMessageDiv.textContent = 'Είμαστε έτοιμοι! Πατήστε "Είμαι έτοιμος!"';
 }
 
-function checkVideoReady() {
-  if (video.currentTime > 0 && !video.paused && !video.ended) {
-    videoReady = true;
-    clearTimeout(videoCheckTimeout);
-    detectPoseInRealTime();
-  } else {
-    videoCheckTimeout = setTimeout(checkVideoReady, 100);
-  }
-}
-
 async function detectPoseInRealTime() {
-  if (!videoReady || !net) {
+  if (!videoReady || !detector) {
     requestAnimationFrame(detectPoseInRealTime);
     return;
   }
 
-  const videoWidth = video.videoWidth;
-  const videoHeight = video.videoHeight;
-  canvas.width = videoWidth;
-  canvas.height = videoHeight;
-  
-  const pose = await net.estimateSinglePose(video, {
-    flipHorizontal: true
-  });
-  
-  const keypoints = pose.keypoints;
-  const confidenceThreshold = 0.5;
-  
-  const leftHip = keypoints[11];
-  const rightHip = keypoints[12];
-  const leftKnee = keypoints[13];
-  const rightKnee = keypoints[14];
-  const leftAnkle = keypoints[15];
-  const rightAnkle = keypoints[16];
+  const poses = await detector.estimatePoses(video);
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
 
-  let poseValid = true;
-  if (!leftHip || !rightHip || !leftKnee || !rightKnee || !leftAnkle || !rightAnkle) {
-    poseValid = false;
-  }
-  if (poseValid && (leftHip.score < confidenceThreshold || rightHip.score < confidenceThreshold || 
-                     leftKnee.score < confidenceThreshold || rightKnee.score < confidenceThreshold ||
-                     leftAnkle.score < confidenceThreshold || rightAnkle.score < confidenceThreshold)) {
-    poseValid = false;
-  }
-  
-  if (poseValid) {
-    const hipAngle = (getAngle(leftHip.position, leftKnee.position, leftAnkle.position) + 
-                      getAngle(rightHip.position, rightKnee.position, rightAnkle.position)) / 2;
-    
-    if (hipAngle > 165 && squatState === 'down') {
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+  if (poses.length > 0) {
+    const keypoints = poses[0].keypoints;
+
+    // ζωγραφίζουμε σημεία
+    keypoints.forEach(point => {
+      if (point.score > 0.3) {
+        ctx.beginPath();
+        ctx.arc(point.x, point.y, 6, 0, 2 * Math.PI);
+        ctx.fillStyle = "blue";
+        ctx.fill();
+      }
+    });
+
+    const leftHip = keypoints[11];
+    const leftKnee = keypoints[13];
+    const leftAnkle = keypoints[15];
+    const rightHip = keypoints[12];
+    const rightKnee = keypoints[14];
+    const rightAnkle = keypoints[16];
+
+    if (leftHip && leftKnee && leftAnkle && rightHip && rightKnee && rightAnkle) {
+      const hipAngle = (getAngle(leftHip, leftKnee, leftAnkle) + getAngle(rightHip, rightKnee, rightAnkle)) / 2;
+
+      if (hipAngle > 165 && squatState === 'down') {
         squatState = 'up';
         squatCount++;
         counterDiv.textContent = squatCount;
         feedbackMessageDiv.textContent = 'Τέλεια! Επόμενη επανάληψη.';
-    } else if (hipAngle < 100 && squatState === 'up') {
+      } else if (hipAngle < 100 && squatState === 'up') {
         squatState = 'down';
         feedbackMessageDiv.textContent = 'Πολύ καλά! Ανέβα τώρα.';
-    } else if (hipAngle < 100 && squatState === 'down') {
-        feedbackMessageDiv.textContent = 'Συνέχισε...';
-    } else {
-        feedbackMessageDiv.textContent = 'Μπες σε θέση εκκίνησης.';
+      }
     }
-    
   } else {
-    feedbackMessageDiv.textContent = 'Εμφανίσου ολόκληρος στην κάμερα.';
+    feedbackMessageDiv.textContent = 'Στάσου σωστά στην κάμερα.';
   }
 
-  drawPose(pose);
   requestAnimationFrame(detectPoseInRealTime);
-}
-
-function drawPose(pose) {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  
-  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-  
-  pose.keypoints.forEach(point => {
-    // ΑΛΛΑΓΗ ΕΔΩ: Μειώνουμε το όριο εμπιστοσύνης για να εμφανίζονται τα σημεία
-    if (point.score > 0.2) { 
-      ctx.beginPath();
-      ctx.arc(point.position.x, point.position.y, 7, 0, 2 * Math.PI);
-      ctx.fillStyle = 'blue';
-      ctx.fill();
-    }
-  });
 }
 
 startButton.addEventListener('click', () => {
   startButton.style.display = 'none';
-  feedbackMessageDiv.textContent = 'Τώρα ξεκινάω!';
-  checkVideoReady();
+  feedbackMessageDiv.textContent = 'Ξεκινάμε!';
+  detectPoseInRealTime();
 });
 
 async function init() {
   await setupWebcam();
-  loadModel();
+  await loadModel();
 }
-
 init();
 </script>
 </body>
