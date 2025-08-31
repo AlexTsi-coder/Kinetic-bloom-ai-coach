@@ -37,6 +37,7 @@
       font-size: 1.2em;
       font-weight: bold;
       z-index: 20;
+      max-width: 80%;
     }
     #startButton {
       position: absolute;
@@ -49,19 +50,18 @@
       z-index: 30;
     }
     #counter {
-      position: absolute;
-      top: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      font-size: 3em;
-      font-weight: bold;
-      color: #fff;
-      text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
-      z-index: 30;
+        position: absolute;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 3em;
+        font-weight: bold;
+        color: #fff;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        z-index: 30;
     }
   </style>
-
-  <!-- TensorFlow.js + Pose Detection -->
+  <!-- TensorFlow + MoveNet -->
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.21.0"></script>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose"></script>
@@ -89,6 +89,7 @@ let videoReady = false;
 let squatState = 'up';
 let squatCount = 0;
 
+// ---------- Helpers ----------
 function getAngle(A, B, C) {
   const angleRad = Math.atan2(C.y - B.y, C.x - B.x) - Math.atan2(A.y - B.y, A.x - B.x);
   let angleDeg = Math.abs(angleRad * 180.0 / Math.PI);
@@ -96,6 +97,11 @@ function getAngle(A, B, C) {
   return angleDeg;
 }
 
+function distance(A, B) {
+  return Math.sqrt((A.x - B.x) ** 2 + (A.y - B.y) ** 2);
+}
+
+// ---------- Setup ----------
 async function setupWebcam() {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ video: true });
@@ -115,13 +121,49 @@ async function setupWebcam() {
 
 async function loadModel() {
   feedbackMessageDiv.textContent = 'Φόρτωση AI...';
-  detector = await poseDetection.createDetector(
-    poseDetection.SupportedModels.MoveNet,
-    { modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING }
-  );
-  feedbackMessageDiv.textContent = 'Είμαστε έτοιμοι! Πατήστε "Είμαι έτοιμος!"';
+  detector = await poseDetection.createDetector(poseDetection.SupportedModels.MoveNet, {
+    modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING
+  });
+  feedbackMessageDiv.textContent = 'Έτοιμο! Πάτησε "Είμαι έτοιμος!"';
 }
 
+// ---------- Form Check ----------
+function checkForm(keypoints) {
+  const leftHip = keypoints[11];
+  const leftKnee = keypoints[13];
+  const leftAnkle = keypoints[15];
+  const rightHip = keypoints[12];
+  const rightKnee = keypoints[14];
+  const rightAnkle = keypoints[16];
+  const leftShoulder = keypoints[5];
+  const rightShoulder = keypoints[6];
+
+  let feedback = [];
+
+  if (leftHip && leftKnee && leftAnkle && rightHip && rightKnee && rightAnkle) {
+    const kneeAngle = (getAngle(leftHip, leftKnee, leftAnkle) + getAngle(rightHip, rightKnee, rightAnkle)) / 2;
+    const backAngle = getAngle(leftShoulder, leftHip, leftKnee);
+
+    // Βάθος squat
+    if (kneeAngle > 140) {
+      feedback.push("Κατέβα πιο χαμηλά.");
+    }
+
+    // Πλάτη ίσια
+    if (backAngle < 150) {
+      feedback.push("Κράτα την πλάτη σου ίσια.");
+    }
+
+    // Γόνατα να μην κλείνουν προς τα μέσα
+    if (leftKnee.x < leftAnkle.x - 20 || rightKnee.x > rightAnkle.x + 20) {
+      feedback.push("Μην αφήνεις τα γόνατα να κλείνουν.");
+    }
+  }
+
+  return feedback.length > 0 ? feedback.join(" ") : "Τέλεια τεχνική!";
+}
+
+// ---------- Main Loop ----------
 async function detectPoseInRealTime() {
   if (!videoReady || !detector) {
     requestAnimationFrame(detectPoseInRealTime);
@@ -129,23 +171,8 @@ async function detectPoseInRealTime() {
   }
 
   const poses = await detector.estimatePoses(video);
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
-
-  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
   if (poses.length > 0) {
     const keypoints = poses[0].keypoints;
-
-    // ζωγραφίζουμε σημεία
-    keypoints.forEach(point => {
-      if (point.score > 0.3) {
-        ctx.beginPath();
-        ctx.arc(point.x, point.y, 6, 0, 2 * Math.PI);
-        ctx.fillStyle = "blue";
-        ctx.fill();
-      }
-    });
 
     const leftHip = keypoints[11];
     const leftKnee = keypoints[13];
@@ -154,26 +181,43 @@ async function detectPoseInRealTime() {
     const rightKnee = keypoints[14];
     const rightAnkle = keypoints[16];
 
-    if (leftHip && leftKnee && leftAnkle && rightHip && rightKnee && rightAnkle) {
-      const hipAngle = (getAngle(leftHip, leftKnee, leftAnkle) + getAngle(rightHip, rightKnee, rightAnkle)) / 2;
+    const kneeAngle = (getAngle(leftHip, leftKnee, leftAnkle) + getAngle(rightHip, rightKnee, rightAnkle)) / 2;
 
-      if (hipAngle > 165 && squatState === 'down') {
-        squatState = 'up';
-        squatCount++;
-        counterDiv.textContent = squatCount;
-        feedbackMessageDiv.textContent = 'Τέλεια! Επόμενη επανάληψη.';
-      } else if (hipAngle < 100 && squatState === 'up') {
-        squatState = 'down';
-        feedbackMessageDiv.textContent = 'Πολύ καλά! Ανέβα τώρα.';
-      }
+    // Squat counting
+    if (kneeAngle > 165 && squatState === 'down') {
+      squatState = 'up';
+      squatCount++;
+      counterDiv.textContent = squatCount;
+    } else if (kneeAngle < 100 && squatState === 'up') {
+      squatState = 'down';
     }
-  } else {
-    feedbackMessageDiv.textContent = 'Στάσου σωστά στην κάμερα.';
+
+    // Feedback τεχνικής
+    const feedback = checkForm(keypoints);
+    feedbackMessageDiv.textContent = feedback;
+
+    drawPose(poses[0]);
   }
 
   requestAnimationFrame(detectPoseInRealTime);
 }
 
+// ---------- Draw ----------
+function drawPose(pose) {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+  pose.keypoints.forEach(point => {
+    if (point.score > 0.4) {
+      ctx.beginPath();
+      ctx.arc(point.x, point.y, 6, 0, 2 * Math.PI);
+      ctx.fillStyle = 'blue';
+      ctx.fill();
+    }
+  });
+}
+
+// ---------- Init ----------
 startButton.addEventListener('click', () => {
   startButton.style.display = 'none';
   feedbackMessageDiv.textContent = 'Ξεκινάμε!';
@@ -183,6 +227,8 @@ startButton.addEventListener('click', () => {
 async function init() {
   await setupWebcam();
   await loadModel();
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
 }
 init();
 </script>
