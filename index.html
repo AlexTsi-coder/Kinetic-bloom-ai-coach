@@ -8,7 +8,7 @@
       margin: 0;
       padding: 0;
       font-family: sans-serif;
-      background-color: #f0f0f0;
+      background-color: #000;
       overflow: hidden;
     }
     #container {
@@ -16,6 +16,7 @@
       width: 100%;
       height: 100vh;
       text-align: center;
+      overflow: hidden;
     }
     #webcam, #output {
       position: absolute;
@@ -25,40 +26,48 @@
       height: 100%;
       object-fit: cover;
     }
-    #feedback-message {
+    #counter {
       position: absolute;
-      bottom: 20px;
+      top: 20px;
       left: 50%;
       transform: translateX(-50%);
-      background-color: rgba(255, 255, 255, 0.85);
-      color: #333;
-      padding: 12px 20px;
-      border-radius: 8px;
-      font-size: 1.2em;
+      font-size: 3em;
       font-weight: bold;
-      z-index: 20;
-      max-width: 80%;
+      color: #fff;
+      text-shadow: 2px 2px 6px rgba(0,0,0,0.7);
+      z-index: 30;
     }
     #startButton {
       position: absolute;
-      bottom: 80px;
+      bottom: 30px;
       left: 50%;
       transform: translateX(-50%);
-      padding: 10px 20px;
-      font-size: 1em;
+      padding: 12px 24px;
+      font-size: 1.1em;
+      font-weight: bold;
       cursor: pointer;
-      z-index: 30;
+      z-index: 40;
     }
-    #counter {
-        position: absolute;
-        top: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        font-size: 3em;
-        font-weight: bold;
-        color: #fff;
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
-        z-index: 30;
+    .feedback-line {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      color: #fff;
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-size: 1.4em;
+      font-weight: bold;
+      z-index: 35;
+      max-width: 90%;
+      white-space: nowrap;
+      text-shadow: 1px 1px 4px rgba(0,0,0,0.7);
+    }
+    #feedback-action {
+      bottom: 140px;
+      background-color: rgba(0, 102, 204, 0.85); /* Μπλε */
+    }
+    #feedback-technique {
+      bottom: 90px;
     }
   </style>
   <!-- TensorFlow + MoveNet -->
@@ -71,8 +80,9 @@
 <div id="container">
   <video id="webcam" playsinline muted></video>
   <canvas id="output"></canvas>
-  <div id="feedback-message"></div>
   <div id="counter">0</div>
+  <div id="feedback-action" class="feedback-line"></div>
+  <div id="feedback-technique" class="feedback-line"></div>
   <button id="startButton">Είμαι έτοιμος!</button>
 </div>
 
@@ -81,25 +91,14 @@ const video = document.getElementById('webcam');
 const canvas = document.getElementById('output');
 const ctx = canvas.getContext('2d');
 const startButton = document.getElementById('startButton');
-const feedbackMessageDiv = document.getElementById('feedback-message');
+const feedbackAction = document.getElementById('feedback-action');
+const feedbackTechnique = document.getElementById('feedback-technique');
 const counterDiv = document.getElementById('counter');
 
 let detector;
 let videoReady = false;
 let squatState = 'up';
 let squatCount = 0;
-
-// ---------- Helpers ----------
-function getAngle(A, B, C) {
-  const angleRad = Math.atan2(C.y - B.y, C.x - B.x) - Math.atan2(A.y - B.y, A.x - B.x);
-  let angleDeg = Math.abs(angleRad * 180.0 / Math.PI);
-  if (angleDeg > 180) angleDeg = 360 - angleDeg;
-  return angleDeg;
-}
-
-function distance(A, B) {
-  return Math.sqrt((A.x - B.x) ** 2 + (A.y - B.y) ** 2);
-}
 
 // ---------- Setup ----------
 async function setupWebcam() {
@@ -114,17 +113,28 @@ async function setupWebcam() {
       };
     });
   } catch (error) {
-    feedbackMessageDiv.textContent = 'Δεν είναι δυνατή η πρόσβαση στην κάμερα.';
+    feedbackAction.textContent = 'Δεν είναι δυνατή η πρόσβαση στην κάμερα.';
     console.error('Webcam error:', error);
   }
 }
 
 async function loadModel() {
-  feedbackMessageDiv.textContent = 'Φόρτωση AI...';
+  feedbackAction.textContent = 'Φόρτωση AI...';
   detector = await poseDetection.createDetector(poseDetection.SupportedModels.MoveNet, {
     modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING
   });
-  feedbackMessageDiv.textContent = 'Έτοιμο! Πάτησε "Είμαι έτοιμος!"';
+  feedbackAction.textContent = 'Έτοιμο! Πάτησε "Είμαι έτοιμος!"';
+}
+
+// ---------- Helper ----------
+function getAngle(a, b, c) {
+  const ab = {x: a.x - b.x, y: a.y - b.y};
+  const cb = {x: c.x - b.x, y: c.y - b.y};
+  const dot = ab.x * cb.x + ab.y * cb.y;
+  const magAB = Math.sqrt(ab.x * ab.x + ab.y * ab.y);
+  const magCB = Math.sqrt(cb.x * cb.x + cb.y * cb.y);
+  const angle = Math.acos(dot / (magAB * magCB));
+  return angle * (180 / Math.PI);
 }
 
 // ---------- Form Check ----------
@@ -146,21 +156,21 @@ function checkForm(keypoints) {
 
     // Βάθος squat
     if (kneeAngle > 140) {
-      feedback.push("Κατέβα πιο χαμηλά.");
+      feedback.push("Κατέβα πιο χαμηλά");
     }
 
     // Πλάτη ίσια
     if (backAngle < 150) {
-      feedback.push("Κράτα την πλάτη σου ίσια.");
+      feedback.push("Κράτα την πλάτη ίσια");
     }
 
-    // Γόνατα να μην κλείνουν προς τα μέσα
+    // Γόνατα προς τα μέσα
     if (leftKnee.x < leftAnkle.x - 20 || rightKnee.x > rightAnkle.x + 20) {
-      feedback.push("Μην αφήνεις τα γόνατα να κλείνουν.");
+      feedback.push("Μην αφήνεις τα γόνατα να κλείνουν");
     }
   }
 
-  return feedback.length > 0 ? feedback.join(" ") : "Τέλεια τεχνική!";
+  return feedback.length > 0 ? feedback[0] : "Τέλεια τεχνική!";
 }
 
 // ---------- Main Loop ----------
@@ -173,28 +183,35 @@ async function detectPoseInRealTime() {
   const poses = await detector.estimatePoses(video);
   if (poses.length > 0) {
     const keypoints = poses[0].keypoints;
-
     const leftHip = keypoints[11];
     const leftKnee = keypoints[13];
     const leftAnkle = keypoints[15];
-    const rightHip = keypoints[12];
-    const rightKnee = keypoints[14];
-    const rightAnkle = keypoints[16];
 
-    const kneeAngle = (getAngle(leftHip, leftKnee, leftAnkle) + getAngle(rightHip, rightKnee, rightAnkle)) / 2;
+    if (leftHip && leftKnee && leftAnkle) {
+      const kneeAngle = getAngle(leftHip, leftKnee, leftAnkle);
 
-    // Squat counting
-    if (kneeAngle > 165 && squatState === 'down') {
-      squatState = 'up';
-      squatCount++;
-      counterDiv.textContent = squatCount;
-    } else if (kneeAngle < 100 && squatState === 'up') {
-      squatState = 'down';
+      // Μετρητής squat
+      if (kneeAngle < 100 && squatState === 'up') {
+        squatState = 'down';
+        feedbackAction.textContent = "Κατέβα!";
+      } 
+      else if (kneeAngle > 160 && squatState === 'down') {
+        squatState = 'up';
+        squatCount++;
+        counterDiv.textContent = squatCount;
+        feedbackAction.textContent = "Ανέβα!";
+      }
     }
 
-    // Feedback τεχνικής
-    const feedback = checkForm(keypoints);
-    feedbackMessageDiv.textContent = feedback;
+    // Τεχνική
+    const techniqueMsg = checkForm(keypoints);
+    feedbackTechnique.textContent = techniqueMsg;
+
+    if (techniqueMsg === "Τέλεια τεχνική!") {
+      feedbackTechnique.style.backgroundColor = "rgba(0, 153, 51, 0.85)"; // Πράσινο
+    } else {
+      feedbackTechnique.style.backgroundColor = "rgba(204, 0, 0, 0.85)"; // Κόκκινο
+    }
 
     drawPose(poses[0]);
   }
@@ -202,35 +219,34 @@ async function detectPoseInRealTime() {
   requestAnimationFrame(detectPoseInRealTime);
 }
 
-// ---------- Draw ----------
+// ---------- Draw Pose ----------
 function drawPose(pose) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
   ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-  pose.keypoints.forEach(point => {
-    if (point.score > 0.4) {
-      ctx.beginPath();
-      ctx.arc(point.x, point.y, 6, 0, 2 * Math.PI);
-      ctx.fillStyle = 'blue';
-      ctx.fill();
+  if (pose && pose.keypoints) {
+    ctx.fillStyle = "yellow";
+    for (let kp of pose.keypoints) {
+      if (kp.score > 0.4) {
+        ctx.beginPath();
+        ctx.arc(kp.x, kp.y, 5, 0, 2 * Math.PI);
+        ctx.fill();
+      }
     }
-  });
+  }
 }
 
-// ---------- Init ----------
+// ---------- Events ----------
 startButton.addEventListener('click', () => {
-  startButton.style.display = 'none';
-  feedbackMessageDiv.textContent = 'Ξεκινάμε!';
+  startButton.style.display = "none";
   detectPoseInRealTime();
 });
 
-async function init() {
-  await setupWebcam();
-  await loadModel();
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
-}
-init();
+setupWebcam();
+loadModel();
 </script>
+
 </body>
 </html>
