@@ -159,11 +159,6 @@ function checkForm(keypoints) {
       feedback.push("Κατέβα πιο χαμηλά");
     }
 
-    // Πλάτη ίσια
-    if (backAngle < 150) {
-      feedback.push("Κράτα την πλάτη ίσια");
-    }
-
     // Γόνατα προς τα μέσα
     if (leftKnee.x < leftAnkle.x - 20 || rightKnee.x > rightAnkle.x + 20) {
       feedback.push("Μην αφήνεις τα γόνατα να κλείνουν");
