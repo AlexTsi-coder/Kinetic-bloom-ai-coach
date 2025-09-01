@@ -70,7 +70,6 @@
       bottom: 90px;
     }
   </style>
-  <!-- TensorFlow + MoveNet -->
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.21.0"></script>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose"></script>
@@ -83,7 +82,7 @@
   <div id="counter">0</div>
   <div id="feedback-action" class="feedback-line"></div>
   <div id="feedback-technique" class="feedback-line"></div>
-  <button id="startButton">Είμαι έτοιμος!</button>
+  <button id="startButton" disabled>Φόρτωση...</button>
 </div>
 
 <script>
@@ -120,10 +119,18 @@ async function setupWebcam() {
 
 async function loadModel() {
   feedbackAction.textContent = 'Φόρτωση AI...';
-  detector = await poseDetection.createDetector(poseDetection.SupportedModels.MoveNet, {
-    modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING
-  });
-  feedbackAction.textContent = 'Έτοιμο! Πάτησε "Είμαι έτοιμος!"';
+  // Χρήση async/await για καλύτερη διαχείριση της φόρτωσης
+  try {
+    detector = await poseDetection.createDetector(poseDetection.SupportedModels.MoveNet, {
+      modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING
+    });
+    feedbackAction.textContent = 'Έτοιμο! Πάτησε "Είμαι έτοιμος!"';
+    startButton.disabled = false;
+    startButton.textContent = "Είμαι έτοιμος!";
+  } catch (error) {
+    feedbackAction.textContent = 'Σφάλμα φόρτωσης AI. Δοκιμάστε ξανά.';
+    console.error('Model loading error:', error);
+  }
 }
 
 // ---------- Helper ----------
@@ -152,7 +159,7 @@ function checkForm(keypoints) {
 
   if (leftHip && leftKnee && leftAnkle && rightHip && rightKnee && rightAnkle) {
     const kneeAngle = (getAngle(leftHip, leftKnee, leftAnkle) + getAngle(rightHip, rightKnee, rightAnkle)) / 2;
-    const backAngle = getAngle(leftShoulder, leftHip, leftKnee);
+    // const backAngle = getAngle(leftShoulder, leftHip, leftKnee); // Αχρησιμοποίητη μεταβλητή
 
     // Βάθος squat
     if (kneeAngle > 140) {
@@ -239,6 +246,7 @@ startButton.addEventListener('click', () => {
   detectPoseInRealTime();
 });
 
+// Εκκίνηση της φόρτωσης του μοντέλου και της κάμερας ταυτόχρονα
 setupWebcam();
 loadModel();
 </script>
