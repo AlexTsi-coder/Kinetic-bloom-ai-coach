@@ -96,7 +96,7 @@ const counterDiv = document.getElementById('counter');
 
 let detector;
 let videoReady = false;
-let squatState = 'up';
+let squatState = 'up'; // 'up' ή 'down'
 let squatCount = 0;
 
 // ---------- Setup ----------
@@ -119,7 +119,6 @@ async function setupWebcam() {
 
 async function loadModel() {
   feedbackAction.textContent = 'Φόρτωση AI...';
-  // Χρήση async/await για καλύτερη διαχείριση της φόρτωσης
   try {
     detector = await poseDetection.createDetector(poseDetection.SupportedModels.MoveNet, {
       modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING
@@ -167,9 +166,14 @@ function checkForm(keypoints) {
     }
 
     // Γόνατα προς τα μέσα
+    // Αυτό το κομμάτι κώδικα ίσως χρειάζεται προσαρμογή ανάλογα με τη θέση της κάμερας.
+    // Ο έλεγχος των συντεταγμένων x μπορεί να είναι αναξιόπιστος.
+    // Μια πιο ισχυρή προσέγγιση θα ήταν να χρησιμοποιήσεις τη γωνία του ισχίου.
+    /*
     if (leftKnee.x < leftAnkle.x - 20 || rightKnee.x > rightAnkle.x + 20) {
       feedback.push("Μην αφήνεις τα γόνατα να κλείνουν");
     }
+    */
   }
 
   return feedback.length > 0 ? feedback[0] : "Τέλεια τεχνική!";
@@ -188,31 +192,39 @@ async function detectPoseInRealTime() {
     const leftHip = keypoints[11];
     const leftKnee = keypoints[13];
     const leftAnkle = keypoints[15];
+    const rightHip = keypoints[12];
+    const rightKnee = keypoints[14];
+    const rightAnkle = keypoints[16];
 
-    if (leftHip && leftKnee && leftAnkle) {
-      const kneeAngle = getAngle(leftHip, leftKnee, leftAnkle);
+    if (leftHip && leftKnee && leftAnkle && rightHip && rightKnee && rightAnkle) {
+      const kneeAngle = (getAngle(leftHip, leftKnee, leftAnkle) + getAngle(rightHip, rightKnee, rightAnkle)) / 2;
 
-      // Μετρητής squat
-      if (kneeAngle < 100 && squatState === 'up') {
+      // Logic για μέτρηση squat
+      if (squatState === 'up' && kneeAngle < 100) {
         squatState = 'down';
         feedbackAction.textContent = "Κατέβα!";
-      } 
-      else if (kneeAngle > 160 && squatState === 'down') {
+      } else if (squatState === 'down' && kneeAngle > 160) {
         squatState = 'up';
         squatCount++;
         counterDiv.textContent = squatCount;
         feedbackAction.textContent = "Ανέβα!";
       }
-    }
 
-    // Τεχνική
-    const techniqueMsg = checkForm(keypoints);
-    feedbackTechnique.textContent = techniqueMsg;
+      // Τεχνική - Τώρα ελέγχεται μόνο όταν η κατάσταση είναι 'down'
+      if (squatState === 'down') {
+        const techniqueMsg = checkForm(keypoints);
+        feedbackTechnique.textContent = techniqueMsg;
 
-    if (techniqueMsg === "Τέλεια τεχνική!") {
-      feedbackTechnique.style.backgroundColor = "rgba(0, 153, 51, 0.85)"; // Πράσινο
-    } else {
-      feedbackTechnique.style.backgroundColor = "rgba(204, 0, 0, 0.85)"; // Κόκκινο
+        if (techniqueMsg === "Τέλεια τεχνική!") {
+          feedbackTechnique.style.backgroundColor = "rgba(0, 153, 51, 0.85)"; // Πράσινο
+        } else {
+          feedbackTechnique.style.backgroundColor = "rgba(204, 0, 0, 0.85)"; // Κόκκινο
+        }
+      } else {
+        // Εάν η κατάσταση είναι 'up', καθάρισε το μήνυμα
+        feedbackTechnique.textContent = "Έτοιμος για την επόμενη επανάληψη!";
+        feedbackTechnique.style.backgroundColor = "transparent";
+      }
     }
 
     drawPose(poses[0]);
