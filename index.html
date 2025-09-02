@@ -71,7 +71,7 @@
     }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.21.0"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection"></script>
+  <script src="https://cdn.jsdelivr.d/npm/@tensorflow-models/pose-detection"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose"></script>
 </head>
 <body>
@@ -143,6 +143,39 @@ function getAngle(a, b, c) {
   return angle * (180 / Math.PI);
 }
 
+// ΝΕΑ ΛΕΙΤΟΥΡΓΙΑ: Έλεγχος αν το άτομο είναι μέσα στο κάδρο
+function isPoseInFrame(keypoints) {
+    const minScore = 0.4;
+    const bodyParts = [
+        keypoints[5], // leftShoulder
+        keypoints[6], // rightShoulder
+        keypoints[11], // leftHip
+        keypoints[12], // rightHip
+        keypoints[15], // leftAnkle
+        keypoints[16] // rightAnkle
+    ];
+
+    // Έλεγχος αν όλα τα απαραίτητα σημεία έχουν ανιχνευτεί με αρκετή ακρίβεια
+    for (const part of bodyParts) {
+        if (!part || part.score < minScore) {
+            return false;
+        }
+    }
+
+    // Έλεγχος αν τα σημεία είναι μέσα στο κάδρο
+    const videoWidth = video.videoWidth;
+    const videoHeight = video.videoHeight;
+    const padding = 20; // Περιθώριο 20 pixels
+
+    for (const part of bodyParts) {
+        if (part.x < padding || part.x > videoWidth - padding || part.y < padding || part.y > videoHeight - padding) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 // ---------- Form Check ----------
 function checkForm(keypoints) {
   const leftHip = keypoints[11];
@@ -158,19 +191,12 @@ function checkForm(keypoints) {
 
   if (leftHip && leftKnee && leftAnkle && rightHip && rightKnee && rightAnkle) {
     const kneeAngle = (getAngle(leftHip, leftKnee, leftAnkle) + getAngle(rightHip, rightKnee, rightAnkle)) / 2;
-    // const backAngle = getAngle(leftShoulder, leftHip, leftKnee); // Αχρησιμοποίητη μεταβλητή
-
+    
     // Βάθος squat
     if (kneeAngle > 140) {
       feedback.push("Κατέβα πιο χαμηλά");
     }
 
-    // Γόνατα προς τα μέσα
-    /*
-    if (leftKnee.x < leftAnkle.x - 20 || rightKnee.x > rightAnkle.x + 20) {
-      feedback.push("Μην αφήνεις τα γόνατα να κλείνουν");
-    }
-    */
   }
 
   return feedback.length > 0 ? feedback[0] : "Τέλεια τεχνική!";
@@ -184,16 +210,16 @@ async function detectPoseInRealTime() {
   }
 
   const poses = await detector.estimatePoses(video);
-
-  // Έλεγχος αν το άτομο είναι στο κάδρο
-  if (poses.length === 0 || poses[0].score < 0.2) {
-    feedbackAction.textContent = "Παρακαλώ, φανείτε ολόκληροι στο κάδρο.";
-    feedbackTechnique.textContent = "";
-    feedbackTechnique.style.backgroundColor = "transparent";
-    requestAnimationFrame(detectPoseInRealTime);
-    return;
+  
+  if (poses.length === 0 || !isPoseInFrame(poses[0].keypoints)) {
+      feedbackAction.textContent = "Παρακαλώ, φανείτε ολόκληροι στο κάδρο.";
+      feedbackTechnique.textContent = "";
+      feedbackTechnique.style.backgroundColor = "transparent";
+      drawPose(null);
+      requestAnimationFrame(detectPoseInRealTime);
+      return;
   }
-
+  
   const keypoints = poses[0].keypoints;
   const leftHip = keypoints[11];
   const leftKnee = keypoints[13];
@@ -201,15 +227,6 @@ async function detectPoseInRealTime() {
   const rightHip = keypoints[12];
   const rightKnee = keypoints[14];
   const rightAnkle = keypoints[16];
-
-  // Έλεγχος για ακεραιότητα βασικών σημείων
-  if (!leftHip || !leftKnee || !leftAnkle || !rightHip || !rightKnee || !rightAnkle) {
-    feedbackAction.textContent = "Δεν βλέπω όλα τα μέρη του σώματός σας. Κινηθείτε πιο πίσω.";
-    feedbackTechnique.textContent = "";
-    feedbackTechnique.style.backgroundColor = "transparent";
-    requestAnimationFrame(detectPoseInRealTime);
-    return;
-  }
 
   const kneeAngle = (getAngle(leftHip, leftKnee, leftAnkle) + getAngle(rightHip, rightKnee, rightAnkle)) / 2;
 
