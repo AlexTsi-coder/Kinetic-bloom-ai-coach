@@ -55,6 +55,18 @@
       bottom: 70px;
       background: rgba(0, 0, 0, 0.65); /* Σκούρο */
     }
+
+    /* MEDIA QUERY: Εφαρμόζει στυλ για οθόνες με μέγιστο πλάτος 640px (όπου το iframe είναι μικρό) */
+    @media (max-width: 640px) {
+      #action {
+        bottom: 50px;
+        font-size: 1.2em;
+      }
+      #technique {
+        bottom: 20px;
+        font-size: 1.2em;
+      }
+    }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.21.0"></script>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection"></script>
